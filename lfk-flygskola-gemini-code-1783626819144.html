@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Utbildningsprogress - LAPL/PPL</title>
+    <!-- Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Vue 3 via CDN -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <!-- Canvas Confetti via CDN för firande-effekter -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+</head>
+<body class="bg-slate-50 text-slate-900 font-sans min-h-screen antialiased">
+
+    <div id="app" class="max-w-7xl mx-auto px-6 py-10" v-cloak>
+        
+        <!-- Översta fältet / Header -->
+        <header class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-10 pb-6 border-b border-slate-200">
+            <div>
+                <h1 class="text-2xl font-bold tracking-tight text-slate-950">Utbildningskort: Flygcertifikat</h1>
+                <p class="text-sm text-slate-500">Aktiv uppföljning av teori, myndighetskrav och skolstatus</p>
+            </div>
+            
+            <div class="flex items-center gap-3">
+                <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Utbildningsprogram:</span>
+                <div class="bg-slate-200 p-1 rounded border border-slate-300 flex gap-1 text-xs">
+                    <button 
+                        @click="state.licenseType = 'PPL'"
+                        :class="state.licenseType === 'PPL' ? 'bg-sky-700 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'"
+                        class="px-3 py-1.5 rounded font-medium transition-all">
+                        PPL (45h)
+                    </button>
+                    <button 
+                        @click="state.licenseType = 'LAPL'"
+                        :class="state.licenseType === 'LAPL' ? 'bg-sky-700 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'"
+                        class="px-3 py-1.5 rounded font-medium transition-all">
+                        LAPL (30h)
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Huvudlayout: Tre sektioner -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            
+            <!-- VÄNSTER PANEL: Timmar, Formella krav & Skolchefscheckar -->
+            <div class="space-y-6">
+                
+                <!-- Ackumulerad blocktid -->
+                <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-xs">
+                    <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4">Ackumulerad blocktid</h2>
+                    
+                    <div class="flex items-baseline gap-1.5 mb-3">
+                        <span class="text-5xl font-mono font-bold tracking-tight text-sky-700">{{ state.totalHours.toFixed(1) }}</span>
+                        <span class="text-xs text-slate-400 font-medium">/ {{ targetHours }} timmar</span>
+                    </div>
+
+                    <div class="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden mb-6 border border-slate-200">
+                        <div class="bg-sky-600 h-full transition-all duration-300" :style="{ width: hourPercentage + '%' }"></div>
+                    </div>
+
+                    <div class="flex items-center justify-between pt-4 border-t border-slate-100">
+                        <span class="text-xs font-medium text-slate-600">Uppdatera totaltid (h):</span>
+                        <input 
+                            type="number" 
+                            v-model.number="state.totalHours" 
+                            min="0" 
+                            max="200" 
+                            step="0.1"
+                            class="w-20 bg-slate-50 border border-slate-300 rounded px-2 py-1 text-sm font-mono font-semibold text-center focus:outline-none focus:border-sky-600">
+                    </div>
+                </div>
+
+                <!-- Formella Behörigheter -->
+                <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-xs">
+                    <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Formella behörigheter</h2>
+                    <div class="divide-y divide-slate-100">
+                        <div 
+                            v-for="item in state.gatingItems" 
+                            :key="item.id"
+                            @click="item.completed = !item.completed"
+                            class="flex items-start gap-3 py-3 first:pt-0 last:pb-0 cursor-pointer group">
+                            <div class="pt-0.5">
+                                <div :class="item.completed ? 'bg-slate-950 border-slate-950' : 'border-slate-300 bg-white group-hover:border-slate-400'"
+                                     class="w-4 h-4 rounded border flex items-center justify-center transition-colors">
+                                    <svg v-if="item.completed" xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 text-white" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                                    </svg>
+                                </div>
+                            </div>
+                            <div>
+                                <p class="text-sm font-medium text-slate-900" :class="{'text-slate-400 line-through': item.completed}">{{ item.label }}</p>
+                                <p class="text-xs text-slate-400 mt-0.5">{{ item.description }}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Skolchefscheckar -->
+                <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-xs">
+                    <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Skolchefscheckar</h2>
+                    <div class="divide-y divide-slate-100">
+                        <div 
+                            v-for="check in state.schoolChecks" 
+                            :key="check.id"
+                            @click="check.completed = !check.completed"
+                            class="flex items-start gap-3 py-3 first:pt-0 last:pb-0 cursor-pointer group">
+                            <div class="pt-0.5">
+                                <div :class="check.completed ? 'bg-sky-700 border-sky-700' : 'border-slate-300 bg-white group-hover:border-slate-400'"
+                                     class="w-4 h-4 rounded border flex items-center justify-center transition-colors">
+                                    <svg v-if="check.completed" xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 text-white" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                                    </svg>
+                                </div>
+                            </div>
+                            <div>
+                                <p class="text-sm font-medium text-slate-900" :class="{'text-slate-400 line-through': check.completed}">{{ check.label }}</p>
+                                <p class="text-xs text-slate-400 mt-0.5">{{ check.description }}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- MITTERSTA PANELEN: Teoristatus -->
+            <div class="space-y-6">
+                <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-xs">
+                    <div class="flex justify-between items-baseline mb-6">
+                        <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400">Teoriprogress (9 ämnen)</h2>
+                        <span class="text-xs font-mono font-bold bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded border border-emerald-200">
+                            {{ completedSubjectsCount }}/9 godkända
+                        </span>
+                    </div>
+
+                    <!-- Ämneslista -->
+                    <div class="space-y-4">
+                        <div v-for="subject in state.subjects" :key="subject.id" class="pb-3 border-b border-slate-100 last:border-0 last:pb-0">
+                            <div class="text-xs font-medium text-slate-800 mb-2">{{ subject.name }}</div>
+                            
+                            <div class="grid grid-cols-4 gap-1 bg-slate-50 p-1 rounded border border-slate-200 text-[10px] font-semibold text-slate-500 text-center">
+                                <button 
+                                    @click="setSubjectStatus(subject, 0)"
+                                    :class="subject.status === 0 ? 'bg-white border-slate-300 text-slate-950 font-bold shadow-xs' : 'border-transparent hover:text-slate-900'"
+                                    class="py-1 rounded border transition-all">
+                                    Ej påb
+                                </button>
+                                <button 
+                                    @click="setSubjectStatus(subject, 1)"
+                                    :class="subject.status === 1 ? 'bg-amber-100 border-amber-300 text-amber-800 font-bold' : 'border-transparent hover:text-slate-900'"
+                                    class="py-1 rounded border transition-all">
+                                    Läser
+                                </button>
+                                <button 
+                                    @click="setSubjectStatus(subject, 2)"
+                                    :class="subject.status === 2 ? 'bg-sky-100 border-sky-300 text-sky-800 font-bold' : 'border-transparent hover:text-slate-900'"
+                                    class="py-1 rounded border transition-all">
+                                    Skolprov
+                                </button>
+                                <button 
+                                    @click="setSubjectStatus(subject, 3)"
+                                    :class="subject.status === 3 ? 'bg-emerald-600 border-emerald-600 text-white font-bold' : 'border-transparent hover:text-slate-900'"
+                                    class="py-1 rounded border transition-all">
+                                    TS-prov
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- HÖGER PANEL: Praktiska milstolpar & Flygfält -->
+            <div class="space-y-6">
+                
+                <!-- Praktiska Milstolpar -->
+                <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-xs">
+                    <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4">Praktiska milstolpar</h2>
+                    <div class="divide-y divide-slate-100">
+                        <div 
+                            v-for="m in state.milestones" 
+                            :key="m.id"
+                            @click="toggleMilestone(m)"
+                            class="flex items-start gap-3 py-3 first:pt-0 last:pb-0 cursor-pointer group">
+                            
+                            <div class="pt-0.5">
+                                <div :class="m.completed ? 'bg-emerald-600 border-emerald-600' : 'border-slate-300 bg-white group-hover:border-slate-400'"
+                                     class="w-4 h-4 rounded border flex items-center justify-center transition-colors">
+                                    <svg v-if="m.completed" xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 text-white" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                                    </svg>
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <p class="text-sm font-medium text-slate-900" :class="{'text-slate-400 line-through': m.completed}">{{ m.label }}</p>
+                                <p class="text-xs text-slate-400 mt-0.5">
+                                    {{ state.licenseType === 'LAPL' && m.id === 'ek_longnav' ? 'Minst 150 NM distansbana' : m.description }}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Besökta flygfält -->
+                <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-xs">
+                    <div class="flex justify-between items-baseline mb-2">
+                        <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400">Besökta flygfält</h2>
+                        <span class="text-xs font-mono font-bold text-sky-700 bg-sky-50 px-2 py-0.5 rounded border border-sky-100">{{ visitedAirfieldsCount }} landade</span>
+                    </div>
+                    <p class="text-xs text-slate-400 mb-4">Markera de flygplatser och stråk du har besökt under din utbildning.</p>
+
+                    <div class="grid grid-cols-1 gap-2">
+                        <div 
+                            v-for="field in state.airfields" 
+                            :key="field.code"
+                            @click="field.visited = !field.visited"
+                            :class="field.visited ? 'bg-emerald-50/50 border-emerald-400' : 'bg-white border-slate-200 hover:border-slate-300'"
+                            class="flex items-center justify-between p-2.5 rounded border cursor-pointer transition-all">
+                            <div class="flex flex-col">
+                                <span class="text-xs font-semibold text-slate-900">{{ field.name }}</span>
+                                <span class="text-[10px] font-mono uppercase tracking-wider text-slate-400">{{ field.code }}</span>
+                            </div>
+                            <div v-if="field.visited" class="text-[10px] font-bold font-mono text-emerald-800 bg-emerald-100 px-1.5 py-0.5 rounded border border-emerald-200">
+                                LANDAT
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Lägg till eget fält -->
+                    <div class="mt-6 pt-4 border-t border-slate-200">
+                        <form @submit.prevent="addCustomAirfield" class="flex gap-2">
+                            <input 
+                                type="text" 
+                                v-model="newAirfieldName" 
+                                placeholder="Namn (t.ex. Visby)" 
+                                class="w-full bg-slate-50 border border-slate-300 rounded px-2 py-1 text-xs focus:outline-none focus:border-sky-600">
+                            <input 
+                                type="text" 
+                                v-model="newAirfieldCode" 
+                                placeholder="ICAO" 
+                                class="w-20 bg-slate-50 border border-slate-300 rounded px-2 py-1 text-xs font-mono uppercase text-center focus:outline-none focus:border-sky-600">
+                            <button 
+                                type="submit" 
+                                class="bg-slate-950 text-white text-xs px-3 py-1 rounded font-medium hover:bg-slate-800 shrink-0">
+                                +
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- System-status i botten -->
+        <footer class="mt-12 text-center">
+            <span class="inline-flex items-center gap-1.5 text-[11px] text-slate-400 font-mono bg-white px-2.5 py-1 rounded border border-slate-200 shadow-xs">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                Ändringar sparas automatiskt lokalt i webbläsaren
+            </span>
+        </footer>
+
+    </div>
+
+    <!-- Vue App-logik -->
+    <script>
+        const { createApp } = Vue;
+        const STORAGE_KEY = 'flygutbildning_progress_v5';
+
+        const defaultState = {
+            licenseType: 'PPL',
+            totalHours: 0.0,
+            gatingItems: [
+                { id: 'medical', label: 'Medicinskt intyg (Klass 2)', completed: false, description: 'Ett absolut myndighetskrav innan du får flyga solo (EK).' },
+                { id: 'radio', label: 'Radiocertifikat & Språkbehörighet', completed: false, description: 'Godkänd radioteori samt språknivåtest (ELP).' }
+            ],
+            schoolChecks: [
+                { id: 'check1', label: 'Skolchefscheck 1 (Inför första EK)', completed: false, description: 'Avstämning med chefinstruktör eller utsedd lärare inför din första soloflygning.' },
+                { id: 'check2', label: 'Skolchefscheck 2 (Navigering)', completed: false, description: 'Kontrollflygning inför distansflygningar på egen hand.' },
+                { id: 'check3', label: 'Skolchefscheck 3 (Inför uppflygning)', completed: false, description: 'Slutprov (Pre-Checkride) för att säkerställa att du är helt klar för kontrollant.' }
+            ],
+            milestones: [
+                { id: 'solo', label: 'Första soloflygningen (EK)', completed: false, description: 'Ett eller flera varv i trafikvarvet helt själv i maskinen.' },
+                { id: 'dk_longnav', label: 'DK långnav', completed: false, description: 'Långdistansnavigering tillsammans med flyglärare.' },
+                { id: 'ek_longnav', label: 'EK långnav', completed: false, description: 'Minst 300 NM distansbana med två fullstoppslandningar på andra fält på egen hand.' }
+            ],
+            subjects: [
+                { id: 1, name: 'Luftfartssystemet & Flygsäkerhet', status: 0 },
+                { id: 2, name: 'Flygplanlära & Instrument', status: 0 },
+                { id: 3, name: 'Prestanda & Färdplanering', status: 0 },
+                { id: 4, name: 'Människan i luften (HPL)', status: 0 },
+                { id: 5, name: 'Meteorologi', status: 0 },
+                { id: 6, name: 'Navigation', status: 0 },
+                { id: 7, name: 'Flygoperativa procedurer', status: 0 },
+                { id: 8, name: 'Aerodynamik (Principles of Flight)', status: 0 },
+                { id: 9, name: 'Radioteori & Kommunikation', status: 0 }
+            ],
+            airfields: [
+                { name: 'Norrköping/Kungsängen', code: 'ESSP', visited: false },
+                { name: 'Finspång', code: 'ESSF', visited: false },
+                { name: 'Motala', code: 'ESSI', visited: false },
+                { name: 'Stockholm Skavsta', code: 'ESKN', visited: false },
+                { name: 'Västervik', code: 'ESSW', visited: false },
+                { name: 'Kalmar Öland', code: 'ESMQ', visited: false },
+                { name: 'Jönköping', code: 'ESGJ', visited: false }
+            ]
+        };
+
+        createApp({
+            data() {
+                return {
+                    state: defaultState,
+                    newAirfieldName: '',
+                    newAirfieldCode: ''
+                }
+            },
+            computed: {
+                targetHours() {
+                    return this.state.licenseType === 'PPL' ? 45 : 30;
+                },
+                hourPercentage() {
+                    const percent = (this.state.totalHours / this.targetHours) * 100;
+                    return Math.min(Math.max(percent, 0), 100);
+                },
+                completedSubjectsCount() {
+                    return this.state.subjects.filter(s => s.status === 3).length;
+                },
+                visitedAirfieldsCount() {
+                    return this.state.airfields.filter(f => f.visited).length;
+                }
+            },
+            methods: {
+                // Den nya, extremt uppgraderade firande-effekten
+                celebrate() {
+                    if (typeof confetti === 'function') {
+                        // 1. Initial super-smäll från sidorna (stora, spridda partiklar)
+                        confetti({ particleCount: 150, spread: 80, origin: { x: 0.1, y: 0.6 }, scalar: 1.2 });
+                        confetti({ particleCount: 150, spread: 80, origin: { x: 0.9, y: 0.6 }, scalar: 1.2 });
+
+                        // 2. Center-bomb med extra kraft strax efteråt
+                        setTimeout(() => {
+                            confetti({ particleCount: 150, spread: 120, origin: { x: 0.5, y: 0.4 }, scalar: 1.4 });
+                        }, 200);
+
+                        // 3. Ett 2.5 sekunder långt konfettiregn som sprutar kontinuerligt från hörnen
+                        const duration = 2500;
+                        const end = Date.now() + duration;
+
+                        (function frame() {
+                            confetti({ particleCount: 4, angle: 60, spread: 60, origin: { x: 0, y: 0.8 } });
+                            confetti({ particleCount: 4, angle: 120, spread: 60, origin: { x: 1, y: 0.8 } });
+
+                            if (Date.now() < end) {
+                                requestAnimationFrame(frame);
+                            }
+                        }());
+                    }
+                },
+                toggleMilestone(m) {
+                    m.completed = !m.completed;
+                    if (m.id === 'solo' && m.completed) {
+                        this.celebrate();
+                    }
+                },
+                setSubjectStatus(subject, newStatus) {
+                    subject.status = newStatus;
+                    if (newStatus === 3 && this.completedSubjectsCount === 9) {
+                        this.celebrate();
+                    }
+                },
+                addCustomAirfield() {
+                    if (!this.newAirfieldName.trim() || !this.newAirfieldCode.trim()) return;
+                    
+                    this.state.airfields.push({
+                        name: this.newAirfieldName.trim(),
+                        code: this.newAirfieldCode.trim().toUpperCase(),
+                        visited: true
+                    });
+
+                    this.newAirfieldName = '';
+                    this.newAirfieldCode = '';
+                }
+            },
+            mounted() {
+                const savedData = localStorage.getItem(STORAGE_KEY);
+                if (savedData) {
+                    try {
+                        this.state = JSON.parse(savedData);
+                    } catch (e) {
+                        this.state = defaultState;
+                    }
+                }
+            },
+            watch: {
+                state: {
+                    handler(newVal) {
+                        localStorage.setItem(STORAGE_KEY, JSON.stringify(newVal));
+                    },
+                    deep: true
+                }
+            }
+        }).mount('#app');
+    </script>
+
+    <style>
+        [v-cloak] { display: none; }
+    </style>
+</body>
+</html>
